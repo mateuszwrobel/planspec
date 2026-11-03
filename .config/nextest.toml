@@ -1,0 +1,6 @@
+# Nextest profile for the planspec unit lane.
+# nextest 0.9.146 honors period + terminate-after only (warn/crit form is
+# silently ignored). Measured worst unit runtime stays far under 80s;
+# kill at 80s * 3 = 240s so a hung test is named and dead, never silent.
+[profile.default]
+slow-timeout = { period = "80s", terminate-after = 3 }

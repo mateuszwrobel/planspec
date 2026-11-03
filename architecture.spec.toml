@@ -1,0 +1,77 @@
+# planspec architecture spec — verified by `archspec verify --strict` in
+# planspec/public/planspec/run-unit-tests.sh.
+#
+# Shape of the real tree (from `archspec scan`: 9 modules, 10 module edges —
+# five between library modules, five inside `#[cfg(test)]` submodules — plus
+# the one unit-tier edge planspec-bin -> planspec): a one-way layering with
+# no mutual edge anywhere, so no boundary folding is needed and `no_cycles`
+# holds at the boundary level directly.
+#
+#   cli      -> model               the binary links the library facade, and
+#                                   the facade lives in `model` (unit tier)
+#   verdict  -> rules, model        evidence resolution into verdicts
+#   rules    -> model               schema/DAG/cite checks + profile
+#   model    -> (nothing)           the canonical workplan model
+
+[project]
+language = "rust"
+
+# cli — the binary entrypoint and the built-in manual. The binary unit
+# (`planspec-bin`) links the library as a unit-tier edge with no module
+# endpoints, so the unit claim here owns that edge's source; it points at the
+# library facade declared in `model`. main.rs reads config, gates and verdict
+# through that facade — one link to the whole library, not three module edges.
+# The manual (`help`) is pure output with no dependencies, so it lives in this
+# boundary too — the binary's use of it is internal to `cli`.
+[[module]]
+name = "cli"
+matches = { units = ["planspec-bin"], modules = ["planspec::help"] }
+
+[module.allowed]
+depend_on = ["model"]
+
+# verdict — resolves each task's cites into a derived verdict (the STALE
+# taxonomy lives here), reading the profile/check list through `rules` and
+# the shapes through `model`.
+[[module]]
+name = "verdict"
+matches = { modules = ["planspec::verdict"] }
+
+[module.allowed]
+depend_on = ["rules", "model"]
+
+# rules — the named gates (schema, dag, cite-resolution) and the project
+# profile. They validate the model and read its shapes; nothing they add
+# feeds back into `model`.
+[[module]]
+name = "rules"
+matches = { modules = ["planspec::config", "planspec::gates"] }
+
+[module.allowed]
+depend_on = ["model"]
+
+# model — the canonical workplan schema (plan, tasks, tombstones, cites) and
+# the loader errors. The library facade unit (`planspec`) is claimed here by
+# the unit fallback, so the binary's unit-tier link lands on this boundary.
+[[module]]
+name = "model"
+matches = { units = ["planspec"], modules = ["planspec::model"] }
+
+[module.allowed]
+depend_on = []
+
+# --- Cycles ---
+# Acyclic at every level: the scan shows no mutual module edge, so edges
+# only ever move cli -> model, verdict -> rules -> model, verdict -> model.
+[[constraint]]
+type = "no_cycles"
+modules = ["cli", "verdict", "rules", "model"]
+severity = "error"
+
+# --- Public API ---
+# The library crate root re-exports exactly the five modules. The exit codes
+# are binary-internal (`main.rs` consts), not library surface.
+[[constraint]]
+type = "public_api_allowlist"
+allowed = ["config", "gates", "help", "model", "verdict"]
+severity = "error"
