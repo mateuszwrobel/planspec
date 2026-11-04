@@ -29,6 +29,16 @@ Build from a checkout of this repository:
 cargo install --path .
 ```
 
+Or fetch a released binary through npm:
+
+```sh
+npm install "@<scope>/planspec"    # <scope> is the scope the release announces
+npx "@<scope>/planspec" verify     # or run it without installing
+```
+
+See [npm/README.md](npm/README.md) for how the npm package fetches and
+verifies the binary.
+
 ## Tests
 
 ```sh
